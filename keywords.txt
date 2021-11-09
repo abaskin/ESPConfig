@@ -1,0 +1,14 @@
+# keywords for MAX72XX library
+
+# classes
+ESPConfig	KEYWORD1
+
+# functions
+save	KEYWORD2
+remove	KEYWORD2
+is	KEYWORD2
+value	KEYWORD2
+keys	KEYWORD2
+
+# constants
+

@@ -1,0 +1,35 @@
+{
+  "name": "ESPConfig",
+  "version": "1.0.0",
+  "description": "A configuration library supporting EEPROM or file system.",
+  "keywords": "configuration EEPROM",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/abaskin/ESPConfig"
+  },
+  "authors":
+  [
+    {
+      "name": "Andre Baskin",
+      "email": "andre@telatomica.com",
+      "url": "https://github.com/abaskin",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "exclude": [
+    ".github"
+  ],
+  "frameworks": "arduino",
+  "platforms": [
+    "espressif32",
+    "espressif8266"
+  ],
+  "dependencies":
+  {
+    "bblanchon/ArduinoJson": "^6.18.5",
+    "jwrw/ESP_EEPROM": "^2.1.1"
+  }
+}

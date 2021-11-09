@@ -1,0 +1,47 @@
+#pragma once
+
+#include <Arduino.h>
+#include <ArduinoJson.h>  // https://github.com/bblanchon/
+#include <FS.h>
+
+#include <map>
+#include <string>
+#include <variant>
+#include <vector>
+
+constexpr auto m_eepromSize{256};
+constexpr auto m_jsonDocSize{1024};
+
+class ESPConfig {
+  public:
+    ESPConfig(fs::FS& fileSys, const char* configFileName,
+              bool useEeprom = true);
+    ESPConfig(fs::FS& fileSys, JsonObjectConst json);
+    ~ESPConfig();
+    void save() const;
+    void remove(const char* key);
+    template <typename T> bool is(const char* key) const;
+    template <typename T> void value(const char* key, T value);
+    template <typename T> T value(const char* key) const;
+    const std::vector<const char*> keys() const;
+    std::string toJSON(bool pretty = true) const;
+
+   private:
+    using ESPConfigP_t = ESPConfig*;
+    using configValue_t = std::variant<bool, double, std::string, ESPConfigP_t,
+                                       std::vector<bool>, std::vector<double>,
+                                       std::vector<std::string>,
+                                       std::vector<ESPConfigP_t>>;
+    using configMap_t = std::map<std::string, configValue_t>;
+
+    void read();
+    void readJson(JsonObjectConst json);
+
+    configMap_t m_config;
+
+    fs::FS& m_fileSys;
+    std::string m_configFileName;
+    bool m_useEeprom;
+};
+
+#include "ESPConfig_impl.hpp"
