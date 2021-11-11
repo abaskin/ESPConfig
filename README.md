@@ -1,17 +1,20 @@
 # ESP Configuration Library
 
-This is a library for managing configuration settings with support for saving to 
-EEPROM or the file system (LittleFS, SPIFFS, SD). The ESP_EEPROM library 
+This is a library for managing configuration settings with support for saving to
+EEPROM or the file system (LittleFS, SPIFFS, SD) as JSON. The ESP_EEPROM library
 (jwrw/ESP_EEPROM) is used to access the EEPROM.
 
 ## Using the library
 
-When an ESPConfig object is created the existing configuration is read from
-the EEPROM or the file system. Values can then be retrived from or written to the
-ESPConfig object and the `save` method called to persist the values. If the data 
-in the EEPROM is not valid the configuration file is used. This is useful on 
-the case of a new device where the EEPROM has not been written yet. The 
-configuration file contains JSON. 
+Once an ESPConfig object is created the existing configuration can then be read
+from the EEPROM, file system, or a JSON string. Values can then be retrived
+from or written to the ESPConfig object and the `save` method called to persist
+the values to the EEPROM or file sysem. If the data in the EEPROM is not valid
+the configuration file is used. This is useful on the case of a new device where
+the EEPROM has not been written yet. In the case where you would like to handle
+reading and writing the data yourself, call `read` with the data in a JSON
+string and call `toJSON` to get the data to store as required. This is useful
+when using another library that also writes to the EEPROM.
 
 ## Supported Value Types
 
@@ -102,16 +105,26 @@ std::vector<const char*> keys()
 Retreive all the keys for a ESPConfig object.
 
 ```c++
+void read();
+read(const char* jsonStr, size_t jsonStrLen)
+```
+
+- **jsonStr** - the JSON to process
+- **jsonStrLen** - the length of the JSON string
+
+Read configuration from the EEPROM, file system, or the passed JSON string.
+
+```c++
 void save();
 ```
 
-Save the configuration to either EEPROM or the file system.
+Save the configuration to either the EEPROM or the file system.
 
 ```c++
 std::string toJSON(bool pretty = true)
 ```
 
-- **pretty** - create a prettified JSON document, i.e. a document with spaces 
+- **pretty** - create a prettified JSON document, i.e. a document with spaces
 and line-breaks between values
 
 Return the configuration data as JSON.

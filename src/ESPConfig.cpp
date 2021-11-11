@@ -7,7 +7,6 @@ ESPConfig::ESPConfig(fs::FS& fileSys, const char* configFileName,
     : m_fileSys(fileSys),
       m_configFileName(configFileName),
       m_useEeprom(useEeprom) {
-  read();
 }
 
 ESPConfig::~ESPConfig(){
@@ -40,14 +39,18 @@ const std::vector<const char*> ESPConfig::keys() const {
 
 void ESPConfig::read() {
   uint8_t configBuff[m_eepromSize];
+  strcpy_P(configBuff, PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
     EEPROM.begin(m_eepromSize);
     EEPROM.get(0, configBuff);
     EEPROM.end();
   }
+  read(configBuff, sizeof(configBuff));
+}
 
+void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   StaticJsonDocument<m_jsonDocSize> json;
-  auto error = deserializeMsgPack(json, configBuff, sizeof(configBuff));
+  auto error = deserialize(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
     //read configuration from FS json
     FSInfo fs_info;
@@ -55,25 +58,22 @@ void ESPConfig::read() {
     if (!mounted) { m_fileSys.begin(); }
     auto configFile = m_fileSys.open(m_configFileName.c_str(), "r");
     if (configFile) {
-      Serial.println(F("opened config file"));
       DeserializationError error = deserializeJson(json, configFile);
       configFile.close();
       if (!mounted) { m_fileSys.end(); }
       if (error) {
-        Serial.printf_P(PSTR("deserializeJson() failed: %s\n"), error.f_str());
+        Serial.printf_P(
+            PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
+            error.f_str());
         return;
       }
     } else {
-      Serial.println(F("unable to open config file for read"));
+      Serial.printf_P(F("ESPConfig warning: unable to open config file '%s' for read\n"),
+                      m_configFileName.c_str());
       if (!mounted) { m_fileSys.end(); }
       return;
     }
-  } else {
-    Serial.println(F("read config from eeprom"));
-  }
-
-  serializeJsonPretty(json, Serial);
-  Serial.println();
+  } 
 
   readJson(json.as<JsonObject>());
 }
@@ -196,7 +196,6 @@ std::string ESPConfig::toJSON(bool pretty) const {
     }
   }
 
-  serializeJsonPretty(json, Serial);
   auto jsonStrLen { measureJsonPretty(json) + 1 };
   std::unique_ptr<char[]> jsonStr { new char[jsonStrLen] };
   if (pretty) {
@@ -209,12 +208,12 @@ std::string ESPConfig::toJSON(bool pretty) const {
 
 void ESPConfig::save() const {
   auto jsonStr{toJSON(!m_useEeprom)};
-  Serial.println(jsonStr.c_str());
   if (m_useEeprom) {
     if (jsonStr.length() + 1 > m_eepromSize) {
       Serial.printf_P(
-          PSTR("config size %d is greater than the available EEPROM size %d\n"
-               "config not saved, increase available EEPROM size\n"),
+          PSTR("ESPConfig error: the config JSON size %d is greater than the "
+               "available EEPROM size %d and the config JSON was not saved.\n"
+               "Please increase the available EEPROM size\n"),
           jsonStr.length() + 1, m_eepromSize);
       return;
     }
@@ -226,7 +225,6 @@ void ESPConfig::save() const {
     EEPROM.put(0, configBuff);
     EEPROM.commit();
     EEPROM.end();
-    Serial.println(F("wrote config to EEPROM"));
     return;
   }
 
@@ -236,17 +234,15 @@ void ESPConfig::save() const {
   if (!mounted) { m_fileSys.begin(); }
   auto configFile = m_fileSys.open(m_configFileName.c_str(), "w");
   if (configFile) {
-    Serial.println(F("opened config file"));
     auto written = configFile.print(jsonStr.c_str());
     configFile.close();
     if (written != jsonStr.length()) {
-      Serial.printf_P(PSTR("serializeJson() failed: %d written not %d\n"),
+      Serial.printf_P(PSTR("ESPConfig error: file system write failed, %d written not %d\n"),
                       written, jsonStr.length());
-    } else {
-      Serial.println(F("wrote config to file"));
     }
   } else {
-    Serial.println(F("unable to open config file for write"));
+    Serial.printf_P(F("ESPConfig error: unable to open config file '%s' for write\n"),
+                    m_configFileName.c_str());
   }
   if (!mounted) { m_fileSys.end(); }
 }
