@@ -38,7 +38,7 @@ const std::vector<const char*> ESPConfig::keys() const {
 }
 
 void ESPConfig::read() {
-  uint8_t configBuff[m_eepromSize];
+  char configBuff[m_eepromSize];
   strcpy_P(configBuff, PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
     EEPROM.begin(m_eepromSize);
@@ -50,7 +50,7 @@ void ESPConfig::read() {
 
 void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   StaticJsonDocument<m_jsonDocSize> json;
-  auto error = deserialize(json, jsonStr, jsonStrLen);
+  auto error = deserializeJson(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
     //read configuration from FS json
     FSInfo fs_info;
@@ -68,12 +68,12 @@ void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
         return;
       }
     } else {
-      Serial.printf_P(F("ESPConfig warning: unable to open config file '%s' for read\n"),
+      Serial.printf_P(PSTR("ESPConfig warning: unable to open config file '%s' for read\n"),
                       m_configFileName.c_str());
       if (!mounted) { m_fileSys.end(); }
       return;
     }
-  } 
+  }
 
   readJson(json.as<JsonObject>());
 }
@@ -219,7 +219,7 @@ void ESPConfig::save() const {
     }
 
     // write to EEPROM
-    uint8_t configBuff[m_eepromSize];
+    char configBuff[m_eepromSize];
     memcpy(configBuff, jsonStr.c_str(), jsonStr.length() + 1);
     EEPROM.begin(m_eepromSize);
     EEPROM.put(0, configBuff);
@@ -241,7 +241,7 @@ void ESPConfig::save() const {
                       written, jsonStr.length());
     }
   } else {
-    Serial.printf_P(F("ESPConfig error: unable to open config file '%s' for write\n"),
+    Serial.printf_P(PSTR("ESPConfig error: unable to open config file '%s' for write\n"),
                     m_configFileName.c_str());
   }
   if (!mounted) { m_fileSys.end(); }

@@ -41,7 +41,7 @@ class ESPConfig {
 
     configMap_t m_config;
 
-    const fs::FS& m_fileSys;
+    fs::FS& m_fileSys;
     const std::string m_configFileName;
     const bool m_useEeprom;
 };
