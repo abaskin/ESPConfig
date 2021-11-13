@@ -7,14 +7,14 @@ EEPROM or the file system (LittleFS, SPIFFS, SD) as JSON. The ESP_EEPROM library
 ## Using the library
 
 Once an ESPConfig object is created the existing configuration can then be read
-from the EEPROM, file system, or a JSON string. Values can then be retrived
+from the EEPROM, file system, or a JSON string. Values can then be retrieved
 from or written to the ESPConfig object and the `save` method called to persist
-the values to the EEPROM or file sysem. If the data in the EEPROM is not valid
+the values to the EEPROM or file system. If the data in the EEPROM is not valid
 the configuration file is used. This is useful on the case of a new device where
 the EEPROM has not been written yet. In the case where you would like to handle
 reading and writing the data yourself, call `read` with the data in a JSON
-string and call `toJSON` to get the data to store as required. This is useful
-when using another library that also writes to the EEPROM.
+string and call `toJSON` to get the data to store as required. This facilitates
+using another library that also writes to the EEPROM.
 
 ## Supported Value Types
 
@@ -32,7 +32,7 @@ C++ Type | JSON Type
 ## Declaring the ESPConfig object
 
 ```c++
-ESPConfig objectName(fs::FS& fileSys, 
+ESPConfig objectName(fs::FS& fileSys,
                      const char* configFileName,
                      bool useEeprom = true);
 ```
@@ -78,7 +78,7 @@ std::vector<ESPConfigP_t> value<std::vector<ESPConfigP_t>>(key)
 
 - **key** - the value's key
 
-Retrive the value for a given key.
+Retrieve the value for a given key.
 
 ```c++
 void value(const char* key, T value)
@@ -95,6 +95,7 @@ void value(const char* key, std::vector<ESPConfigP_t> value)
 ```
 
 - **key** - the value's key
+- **value** - the value to be saved
 
 Set the value for a given key.
 
@@ -128,3 +129,17 @@ std::string toJSON(bool pretty = true)
 and line-breaks between values
 
 Return the configuration data as JSON.
+
+```c++
+void remove(const char* key)
+```
+
+- **key** - the value's key
+
+Remove a value based in its key
+
+```c++
+void reset()
+```
+
+Remove all values

@@ -29,6 +29,12 @@ void ESPConfig::remove(const char* key) {
   m_config.erase(key);
 }
 
+void ESPConfig::reset() {
+  for (auto key : keys()) {
+    remove(key);
+  }
+}
+
 const std::vector<const char*> ESPConfig::keys() const {
   std::vector<const char*> key{};
   for (const auto& c : m_config) {
