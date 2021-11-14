@@ -216,7 +216,7 @@ std::string ESPConfig::toJSON(bool pretty) const {
   return std::string{jsonStr.get()};
 }
 
-ESPConfig& ESPConfig::save() const {
+void ESPConfig::save() const {
   auto jsonStr{toJSON(!m_useEeprom)};
   if (m_useEeprom) {
     if (jsonStr.length() + 1 > m_eepromSize) {

@@ -21,9 +21,9 @@ class ESPConfig {
     ~ESPConfig();
     ESPConfig& read();
     ESPConfig& read(const char* jsonStr, size_t jsonStrLen);
-    ESPConfig& save() const;
     ESPConfig& remove(const char* key);
     ESPConfig& reset();
+    void save() const;
     template <typename T> bool is(const char* key) const;
     template <typename T> void value(const char* key, T value);
     template <typename T> T value(const char* key) const;
