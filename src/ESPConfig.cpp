@@ -44,18 +44,18 @@ const std::vector<const char*> ESPConfig::keys() const {
 }
 
 void ESPConfig::read() {
-  char configBuff[m_eepromSize];
-  strcpy_P(configBuff, PSTR("{}"));
+  std::unique_ptr<char[]> configBuff{ new char[m_eepromSize] };
+  strcpy_P(configBuff.get(), PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
     EEPROM.begin(m_eepromSize);
     EEPROM.get(0, configBuff);
     EEPROM.end();
   }
-  read(configBuff, sizeof(configBuff));
+  read(configBuff.get(), m_eepromSize);
 }
 
 void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
-  StaticJsonDocument<m_jsonDocSize> json;
+  DynamicJsonDocument json { m_jsonDocSize };
   auto error = deserializeJson(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
     //read configuration from FS json
@@ -150,7 +150,7 @@ void ESPConfig::readJson(JsonObjectConst json){
 }
 
 std::string ESPConfig::toJSON(bool pretty) const {
-  StaticJsonDocument<m_jsonDocSize> json;
+  DynamicJsonDocument json { m_jsonDocSize };
 
   json[F("Saved")] = true;
 
