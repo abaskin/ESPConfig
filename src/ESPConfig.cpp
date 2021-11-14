@@ -22,17 +22,19 @@ ESPConfig::ESPConfig(fs::FS& fileSys, JsonObjectConst json)
   readJson(json);
 }
 
-void ESPConfig::remove(const char* key) {
+ESPConfig& ESPConfig::remove(const char* key) {
   if (is<ESPConfigP_t>(key)) {
     delete std::get<ESPConfigP_t>(m_config.at(key));
   }
   m_config.erase(key);
+  return *this;
 }
 
-void ESPConfig::reset() {
+ESPConfig& ESPConfig::reset() {
   for (auto key : keys()) {
     remove(key);
   }
+  return *this;
 }
 
 const std::vector<const char*> ESPConfig::keys() const {
@@ -43,7 +45,7 @@ const std::vector<const char*> ESPConfig::keys() const {
   return key;
 }
 
-void ESPConfig::read() {
+ESPConfig& ESPConfig::read() {
   std::unique_ptr<char[]> configBuff{ new char[m_eepromSize] };
   strcpy_P(configBuff.get(), PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
@@ -52,9 +54,10 @@ void ESPConfig::read() {
     EEPROM.end();
   }
   read(configBuff.get(), m_eepromSize);
+  return *this;
 }
 
-void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
+ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   DynamicJsonDocument json { m_jsonDocSize };
   auto error = deserializeJson(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
@@ -82,6 +85,7 @@ void ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   }
 
   readJson(json.as<JsonObject>());
+  return *this;
 }
 
 void ESPConfig::readJson(JsonObjectConst json){
@@ -212,7 +216,7 @@ std::string ESPConfig::toJSON(bool pretty) const {
   return std::string{jsonStr.get()};
 }
 
-void ESPConfig::save() const {
+ESPConfig& ESPConfig::save() const {
   auto jsonStr{toJSON(!m_useEeprom)};
   if (m_useEeprom) {
     if (jsonStr.length() + 1 > m_eepromSize) {
@@ -221,7 +225,7 @@ void ESPConfig::save() const {
                "available EEPROM size %d and the config JSON was not saved.\n"
                "Please increase the available EEPROM size\n"),
           jsonStr.length() + 1, m_eepromSize);
-      return;
+      return *this;
     }
 
     // write to EEPROM
@@ -231,7 +235,7 @@ void ESPConfig::save() const {
     EEPROM.put(0, configBuff);
     EEPROM.commit();
     EEPROM.end();
-    return;
+    return *this;
   }
 
   // write configuration json to FS
@@ -251,4 +255,5 @@ void ESPConfig::save() const {
                     m_configFileName.c_str());
   }
   if (!mounted) { m_fileSys.end(); }
+  return *this;
 }

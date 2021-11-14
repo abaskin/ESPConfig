@@ -106,8 +106,8 @@ std::vector<const char*> keys()
 Retreive all the keys for a ESPConfig object.
 
 ```c++
-void read();
-read(const char* jsonStr, size_t jsonStrLen)
+ESPConfig& read();
+ESPConfig& read(const char* jsonStr, size_t jsonStrLen)
 ```
 
 - **jsonStr** - the JSON to process
@@ -116,7 +116,7 @@ read(const char* jsonStr, size_t jsonStrLen)
 Read configuration from the EEPROM, file system, or the passed JSON string.
 
 ```c++
-void save();
+ESPConfig& save();
 ```
 
 Save the configuration to either the EEPROM or the file system.
@@ -131,7 +131,7 @@ and line-breaks between values
 Return the configuration data as JSON.
 
 ```c++
-void remove(const char* key)
+ESPConfig& remove(const char* key)
 ```
 
 - **key** - the value's key
@@ -139,7 +139,7 @@ void remove(const char* key)
 Remove a value based in its key
 
 ```c++
-void reset()
+ESPConfig& reset()
 ```
 
 Remove all values
