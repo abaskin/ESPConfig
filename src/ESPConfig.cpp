@@ -74,13 +74,13 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
         Serial.printf_P(
             PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
             error.f_str());
-        return;
+        return *this;
       }
     } else {
       Serial.printf_P(PSTR("ESPConfig warning: unable to open config file '%s' for read\n"),
                       m_configFileName.c_str());
       if (!mounted) { m_fileSys.end(); }
-      return;
+      return *this;
     }
   }
 
