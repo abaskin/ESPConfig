@@ -225,7 +225,7 @@ void ESPConfig::save() const {
                "available EEPROM size %d and the config JSON was not saved.\n"
                "Please increase the available EEPROM size\n"),
           jsonStr.length() + 1, m_eepromSize);
-      return *this;
+      return;
     }
 
     // write to EEPROM
@@ -235,7 +235,7 @@ void ESPConfig::save() const {
     EEPROM.put(0, configBuff);
     EEPROM.commit();
     EEPROM.end();
-    return *this;
+    return;
   }
 
   // write configuration json to FS
@@ -255,5 +255,5 @@ void ESPConfig::save() const {
                     m_configFileName.c_str());
   }
   if (!mounted) { m_fileSys.end(); }
-  return *this;
+  return;
 }
