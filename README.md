@@ -14,7 +14,7 @@ the configuration file is used. This is useful on the case of a new device where
 the EEPROM has not been written yet. In the case where you would like to handle
 reading and writing the data yourself, call `read` with the data in a JSON
 string and call `toJSON` to get the data to store as required. This facilitates
-using another library that also writes to the EEPROM.
+using with another library that also writes to the EEPROM.
 
 ## Supported Value Types
 
@@ -103,20 +103,20 @@ Set the value for a given key.
 std::vector<const char*> keys()
 ```
 
-Retreive all the keys for a ESPConfig object.
+Retrieve all the keys for the ESPConfig object.
 
 ```c++
 ESPConfig& read();
 ESPConfig& read(const char* jsonStr, size_t jsonStrLen)
 ```
 
-- **jsonStr** - the JSON to process
-- **jsonStrLen** - the length of the JSON string
+- **jsonStr** - the JSON string to process
+- **jsonStrLen** -  the maximum number of bytes to read from jsonStr
 
 Read configuration from the EEPROM, file system, or the passed JSON string.
 
 ```c++
-ESPConfig& save();
+void save();
 ```
 
 Save the configuration to either the EEPROM or the file system.
