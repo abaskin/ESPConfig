@@ -46,14 +46,14 @@ const std::vector<const char*> ESPConfig::keys() const {
 }
 
 ESPConfig& ESPConfig::read() {
-  std::unique_ptr<char[]> configBuff{ new char[m_eepromSize] };
-  strcpy_P(configBuff.get(), PSTR("{}"));
+  char configBuff[m_eepromSize];
+  strcpy_P(configBuff, PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
     EEPROM.begin(m_eepromSize);
     EEPROM.get(0, configBuff);
     EEPROM.end();
   }
-  read(configBuff.get(), m_eepromSize);
+  read(configBuff, m_eepromSize);
   return *this;
 }
 
