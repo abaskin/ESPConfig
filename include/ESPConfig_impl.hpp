@@ -22,19 +22,22 @@ inline bool ESPConfig::is<std::array<double, 2>>(const char* key) const {
 // ---- value setter ----
 
 template <typename T>
-inline void ESPConfig::value(const char* key, T value) {
+inline ESPConfig& ESPConfig::value(const char* key, T value) {
   m_config[key] = (T)value;
+  return *this;
 }
 
 template <>
-inline void ESPConfig::value<const char*>(const char* key, const char* value) {
+inline ESPConfig& ESPConfig::value<const char*>(const char* key, const char* value) {
   m_config[key] = std::string{value};
+  return *this;
 }
 
 template <>
-inline void ESPConfig::value<std::array<double, 2>>(const char* key,
-                                                    const std::array<double, 2> value) {
+inline ESPConfig& ESPConfig::value<std::array<double, 2>>(const char* key,
+                                                          const std::array<double, 2> value) {
   m_config[key] = std::vector<double>{value[0], value[1]};
+  return *this;
 }
 
 // ---- value getter ----

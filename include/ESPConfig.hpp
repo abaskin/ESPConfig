@@ -25,7 +25,7 @@ class ESPConfig {
     ESPConfig& reset();
     void save() const;
     template <typename T> bool is(const char* key) const;
-    template <typename T> void value(const char* key, T value);
+    template <typename T> ESPConfig& value(const char* key, T value);
     template <typename T> T value(const char* key) const;
     const std::vector<const char*> keys() const;
     std::string toJSON(bool pretty = true) const;
