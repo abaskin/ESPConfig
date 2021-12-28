@@ -7,8 +7,13 @@
 #include <functional>
 #include <map>
 #include <string>
-#include <variant>
 #include <vector>
+
+#ifdef ESP32
+#include "variant.hpp"
+#else // ESP8266
+#include <variant>
+#end
 
 constexpr auto m_eepromSize{1024};
 constexpr auto m_jsonDocSize{1024};
