@@ -13,7 +13,7 @@
 #include "variant.hpp"
 #else // ESP8266
 #include <variant>
-#end
+#endif
 
 constexpr auto m_eepromSize{1024};
 constexpr auto m_jsonDocSize{1024};
