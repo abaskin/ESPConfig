@@ -96,7 +96,7 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
       if (error) {
         Serial.printf_P(
             PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
-            error.f_str());
+            error.c_str());
         return *this;
       }
     } else {
