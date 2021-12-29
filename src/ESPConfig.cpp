@@ -1,7 +1,8 @@
 #include "ESPConfig.hpp"
 
 #ifdef ESP32
-
+#include <Preferences.h>
+##include <memory>
 #else
 #include <ESP_EEPROM.h>
 #endif
@@ -58,7 +59,10 @@ ESPConfig& ESPConfig::read() {
   strcpy_P(configBuff, PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
   #ifdef ESP32
-  // read from ESP32 eeprom
+    std::unique_ptr<Preferences> prefs{ new Preferences };
+    prefs->begin(m_prefNamespace);
+    perfs->getString(m_prefKey, configBuff, sizeof(configBuff));
+    prefs->end();
   #else
     EEPROM.begin(m_eepromSize);
     EEPROM.get(0, configBuff);
@@ -73,8 +77,9 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   DynamicJsonDocument json { m_jsonDocSize };
   auto error = deserializeJson(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
-    //read configuration from FS json
+  //read configuration from FS json
   #ifdef ESP32
+  // the filesystem must aleady be mounted
   #else
     FSInfo fs_info;
     auto mounted = m_fileSys.info(fs_info);
@@ -180,7 +185,7 @@ std::string ESPConfig::toJSON(bool pretty) const {
   json[F("Saved")] = true;
 
   for (auto key : keys()) {
-    // the order must match the configValue_t variant definition
+  // the order must match the configValue_t variant definition
   #ifdef ESP32
     uint32_t index { 255 };
     if (m_config.at(key).type() == typeid(bool)) index = 0;
@@ -263,7 +268,10 @@ void ESPConfig::save() const {
     }
 
   #ifdef ESP32
-
+    std::unique_ptr<Preferences> prefs{ new Preferences };
+    prefs->begin(m_prefNamespace);
+    perfs->putString(m_prefKey, jsonStr.c_str());
+    prefs->end();
   #else
     // write to EEPROM
     char configBuff[m_eepromSize];
@@ -278,7 +286,7 @@ void ESPConfig::save() const {
 
   // write configuration json to FS
 #ifdef ESP32
-
+// the filesystem must already be mounted
 #else
   FSInfo fs_info;
   auto mounted = m_fileSys.info(fs_info);

@@ -15,7 +15,12 @@
 #include <variant>
 #endif
 
+#ifdef ESP32
+constexpr auto m_prefNamespace{"clockConfig"};
+constexpr auto m_prefKey{"configJson"};
+#else
 constexpr auto m_eepromSize{1024};
+#endif
 constexpr auto m_jsonDocSize{1024};
 
 class ESPConfig {

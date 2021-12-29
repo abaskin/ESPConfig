@@ -40,5 +40,18 @@
       "version": "^2.1.1",
       "platforms": [ "espressif8266" ]
     }
-  ]
+  ],
+  "build": {
+      "flags": [
+        "-D ARDUINOJSON_ENABLE_ARDUINO_STREAM=1"
+        "-D ARDUINOJSON_ENABLE_STD_STRING=0",
+        "-D ARDUINOJSON_ENABLE_STD_STREAM=0",
+        "-D ARDUINOJSON_ENABLE_ARDUINO_STRING=0",
+        "-D ARDUINOJSON_ENABLE_ARDUINO_PRINT=0",
+        "-D ARDUINOJSON_DECODE_UNICODE=0",
+        "-D ARDUINOJSON_ENABLE_COMMENTS=0",
+        "-D ARDUINOJSON_ENABLE_NAN=0",
+        "-D ARDUINOJSON_ENABLE_INFINITY=0"
+      ]
+  }
 }
