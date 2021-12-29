@@ -9,13 +9,21 @@
 template <typename T>
 inline bool ESPConfig::is(const char* key) const {
   return m_config.find(key) != m_config.end() &&
-         std::holds_alternative<T>(m_config.at(key));
+      #ifdef ESP32
+        m_config.at(key).type() == typeid(T);
+      #else
+        std::holds_alternative<T>(m_config.at(key));
+      #endif
 }
 
 template <>
 inline bool ESPConfig::is<std::array<double, 2>>(const char* key) const {
   return m_config.find(key) != m_config.end() &&
-         std::holds_alternative<std::vector<double>>(m_config.at(key)) &&
+      #ifdef ESP32
+        m_config.at(key).type() == typeid(std::vector<double>) &&
+      #else
+        std::holds_alternative<std::vector<double>>(m_config.at(key)) &&
+      #endif
          value<std::vector<double>>(key).size() == 2;
 }
 
@@ -44,13 +52,21 @@ inline ESPConfig& ESPConfig::value<std::array<double, 2>>(const char* key,
 
 template <typename T>
 inline T ESPConfig::value(const char* key) const {
+#ifdef ESP32
+  return (is<T>(key)) ? linb::any_cast<T>(m_config.at(key)) : (T){};
+#else
   return (is<T>(key)) ? std::get<T>(m_config.at(key)) : (T){};
+#endif
 }
 
 template <>
 inline const char* ESPConfig::value(const char* key) const {
   return (is<std::string>(key))
+  #ifdef ESP32
+    ? linb::any_cast<std::string>(m_config.at(key)).c_str()
+  #else
     ? std::get<std::string>(m_config.at(key)).c_str()
+  #endif
     : "";
 }
 

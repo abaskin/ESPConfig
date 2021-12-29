@@ -1,6 +1,10 @@
 #include "ESPConfig.hpp"
 
+#ifdef ESP32
+
+#else
 #include <ESP_EEPROM.h>
+#endif
 
 ESPConfig::ESPConfig(fs::FS& fileSys, const char* configFileName,
                      bool useEeprom)
@@ -24,7 +28,11 @@ ESPConfig::ESPConfig(fs::FS& fileSys, JsonObjectConst json)
 
 ESPConfig& ESPConfig::remove(const char* key) {
   if (is<ESPConfigP_t>(key)) {
+  #ifdef ESP32
+    delete linb::any_cast<ESPConfigP_t>(m_config.at(key));
+  #else
     delete std::get<ESPConfigP_t>(m_config.at(key));
+  #endif
   }
   m_config.erase(key);
   return *this;
@@ -49,9 +57,13 @@ ESPConfig& ESPConfig::read() {
   char configBuff[m_eepromSize];
   strcpy_P(configBuff, PSTR("{}"));
   if (m_useEeprom) {    // read from EEPROM
+  #ifdef ESP32
+  // read from ESP32 eeprom
+  #else
     EEPROM.begin(m_eepromSize);
     EEPROM.get(0, configBuff);
     EEPROM.end();
+  #endif
   }
   read(configBuff, m_eepromSize);
   return *this;
@@ -62,14 +74,20 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   auto error = deserializeJson(json, jsonStr, jsonStrLen);
   if (error || json[F("Saved")].as<bool>() == false) {
     //read configuration from FS json
+  #ifdef ESP32
+  #else
     FSInfo fs_info;
     auto mounted = m_fileSys.info(fs_info);
     if (!mounted) { m_fileSys.begin(); }
+  #endif
     auto configFile = m_fileSys.open(m_configFileName.c_str(), "r");
     if (configFile) {
       DeserializationError error = deserializeJson(json, configFile);
       configFile.close();
+    #ifdef ESP32
+    #else
       if (!mounted) { m_fileSys.end(); }
+    #endif
       if (error) {
         Serial.printf_P(
             PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
@@ -79,7 +97,10 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
     } else {
       Serial.printf_P(PSTR("ESPConfig warning: unable to open config file '%s' for read\n"),
                       m_configFileName.c_str());
+    #ifdef ESP32
+    #else
       if (!mounted) { m_fileSys.end(); }
+    #endif
       return *this;
     }
   }
@@ -160,7 +181,20 @@ std::string ESPConfig::toJSON(bool pretty) const {
 
   for (auto key : keys()) {
     // the order must match the configValue_t variant definition
-    switch (m_config.at(key).index()) {
+  #ifdef ESP32
+    uint32_t index { 255 };
+    if (m_config.at(key).type() == typeid(bool)) index = 0;
+    if (m_config.at(key).type() == typeid(double)) index = 1;
+    if (m_config.at(key).type() == typeid(std::string)) index = 2;
+    if (m_config.at(key).type() == typeid(ESPConfigP_t)) index = 3;
+    if (m_config.at(key).type() == typeid(std::vector<bool>)) index = 4;
+    if (m_config.at(key).type() == typeid(std::vector<double>)) index = 5;
+    if (m_config.at(key).type() == typeid(std::vector<std::string>)) index = 6;
+    if (m_config.at(key).type() == typeid(std::vector<ESPConfigP_t>)) index = 7;
+  #else
+    uint32_t index { m_config.at(key).index() };
+  #endif
+    switch (index) {
       case 0:  // bool
         json[key] = value<bool>(key);
         break;
@@ -228,6 +262,9 @@ void ESPConfig::save() const {
       return;
     }
 
+  #ifdef ESP32
+
+  #else
     // write to EEPROM
     char configBuff[m_eepromSize];
     memcpy(configBuff, jsonStr.c_str(), jsonStr.length() + 1);
@@ -235,13 +272,18 @@ void ESPConfig::save() const {
     EEPROM.put(0, configBuff);
     EEPROM.commit();
     EEPROM.end();
+  #endif
     return;
   }
 
   // write configuration json to FS
+#ifdef ESP32
+
+#else
   FSInfo fs_info;
   auto mounted = m_fileSys.info(fs_info);
   if (!mounted) { m_fileSys.begin(); }
+#endif
   auto configFile = m_fileSys.open(m_configFileName.c_str(), "w");
   if (configFile) {
     auto written = configFile.print(jsonStr.c_str());
@@ -254,6 +296,10 @@ void ESPConfig::save() const {
     Serial.printf_P(PSTR("ESPConfig error: unable to open config file '%s' for write\n"),
                     m_configFileName.c_str());
   }
+#ifdef ESP32
+
+#else
   if (!mounted) { m_fileSys.end(); }
+#endif
   return;
 }

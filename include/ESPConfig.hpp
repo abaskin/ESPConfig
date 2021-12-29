@@ -10,7 +10,7 @@
 #include <vector>
 
 #ifdef ESP32
-#include "variant.hpp"
+#include "any.hpp"
 #else // ESP8266
 #include <variant>
 #endif
@@ -37,10 +37,14 @@ class ESPConfig {
 
    private:
     using ESPConfigP_t = ESPConfig*;
+  #ifdef ESP32
+    using configValue_t = linb::any;
+  #else
     using configValue_t = std::variant<bool, double, std::string, ESPConfigP_t,
                                        std::vector<bool>, std::vector<double>,
                                        std::vector<std::string>,
                                        std::vector<ESPConfigP_t>>;
+  #endif
     using configMap_t = std::map<std::string, configValue_t>;
 
     void readJson(JsonObjectConst json);

@@ -28,8 +28,17 @@
     "espressif8266"
   ],
   "dependencies":
-  {
-    "bblanchon/ArduinoJson": "^6.18.5",
-    "jwrw/ESP_EEPROM": "^2.1.1"
-  }
+  [
+    {
+      "owner": "bblanchon",
+      "name": "ArduinoJson",
+      "version": "^6.18.5"
+    },
+    {
+      "owner": "jwrw",
+      "name": "ESP_EEPROM",
+      "version": "^2.1.1",
+      "platforms": [ "espressif8266" ]
+    }
+  ]
 }
