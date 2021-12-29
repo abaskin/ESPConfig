@@ -1,8 +1,9 @@
 # ESP Configuration Library
 
 This is a library for managing configuration settings with support for saving to
-EEPROM or the file system (LittleFS, SPIFFS, SD) as JSON. The ESP_EEPROM library
-(jwrw/ESP_EEPROM) is used to access the EEPROM.
+EEPROM or the file system (LittleFS, SPIFFS, SD) as JSON. On the ESP8266 the
+ESP_EEPROM library (jwrw/ESP_EEPROM) is used to access the EEPROM. On the ESP32
+the Preferences library is used.
 
 ## Using the library
 

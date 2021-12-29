@@ -16,7 +16,7 @@
 #endif
 
 #ifdef ESP32
-constexpr auto m_prefNamespace{"clockConfig"};
+constexpr auto m_prefNamespace{"ESPConfig"};
 constexpr auto m_prefKey{"configJson"};
 #endif
 constexpr auto m_eepromSize{1024};
