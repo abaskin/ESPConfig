@@ -2,7 +2,7 @@
 
 #ifdef ESP32
 #include <Preferences.h>
-##include <memory>
+#include <memory>
 #else
 #include <ESP_EEPROM.h>
 #endif
@@ -61,7 +61,7 @@ ESPConfig& ESPConfig::read() {
   #ifdef ESP32
     std::unique_ptr<Preferences> prefs{ new Preferences };
     prefs->begin(m_prefNamespace);
-    perfs->getString(m_prefKey, configBuff, sizeof(configBuff));
+    prefs->getString(m_prefKey, configBuff, sizeof(configBuff));
     prefs->end();
   #else
     EEPROM.begin(m_eepromSize);
@@ -270,7 +270,7 @@ void ESPConfig::save() const {
   #ifdef ESP32
     std::unique_ptr<Preferences> prefs{ new Preferences };
     prefs->begin(m_prefNamespace);
-    perfs->putString(m_prefKey, jsonStr.c_str());
+    prefs->putString(m_prefKey, jsonStr.c_str());
     prefs->end();
   #else
     // write to EEPROM
