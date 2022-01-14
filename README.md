@@ -15,7 +15,9 @@ the configuration file is used. This is useful on the case of a new device where
 the EEPROM has not been written yet. In the case where you would like to handle
 reading and writing the data yourself, call `read` with the data in a JSON
 string and call `toJSON` to get the data to store as required. This facilitates
-using with another library that also writes to the EEPROM.
+using with another library that also writes to the EEPROM. The flags passed to
+ArduinoJson in the library.json file allow for comments to be used configuration
+files stored in the filesystem if used with PlatformIO.
 
 ## Supported Value Types
 
