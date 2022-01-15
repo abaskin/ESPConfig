@@ -9,9 +9,18 @@
 
 ESPConfig::ESPConfig(fs::FS& fileSys, const char* configFileName,
                      bool useEeprom)
-    : m_fileSys(fileSys),
-      m_configFileName(configFileName),
-      m_useEeprom(useEeprom) {
+    : m_fileSys{fileSys},
+      m_configFileList{{configFileName}},
+      m_useEeprom{useEeprom} {
+  read();
+}
+
+ESPConfig::ESPConfig(fs::FS& fileSys, std::vector<const char*> configFileList,
+          bool useEeprom)
+    : m_fileSys{fileSys},
+      m_configFileList{configFileList},
+      m_useEeprom{useEeprom} {
+  read();
 }
 
 ESPConfig::~ESPConfig(){
@@ -21,9 +30,9 @@ ESPConfig::~ESPConfig(){
 }
 
 ESPConfig::ESPConfig(fs::FS& fileSys, JsonObjectConst json)
-    : m_fileSys(fileSys),
-      m_configFileName(""),
-      m_useEeprom(false) {
+    : m_fileSys{fileSys},
+      m_configFileList{{}},
+      m_useEeprom{false} {
   readJson(json);
 }
 
@@ -75,42 +84,41 @@ ESPConfig& ESPConfig::read() {
 
 ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   DynamicJsonDocument json { m_jsonDocSize };
-  auto error = deserializeJson(json, jsonStr, jsonStrLen);
-  if (error || json[F("Saved")].as<bool>() == false) {
   //read configuration from FS json
-  #ifdef ESP32
-  // the filesystem must aleady be mounted
-  #else
-    FSInfo fs_info;
-    auto mounted = m_fileSys.info(fs_info);
-    if (!mounted) { m_fileSys.begin(); }
-  #endif
-    auto configFile = m_fileSys.open(m_configFileName.c_str(), "r");
+#ifdef ESP32
+  // filesystem must be mounted
+#else
+  FSInfo fs_info;
+  auto mounted = m_fileSys.info(fs_info);
+  if (!mounted) { m_fileSys.begin(); }
+#endif
+  for (const auto& fName : m_configFileList) {
+    auto configFile = m_fileSys.open(fName.c_str(), "r");
     if (configFile) {
       DeserializationError error = deserializeJson(json, configFile);
       configFile.close();
-    #ifdef ESP32
-    #else
-      if (!mounted) { m_fileSys.end(); }
-    #endif
       if (error) {
         Serial.printf_P(
             PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
             error.c_str());
-        return *this;
+            continue;
       }
     } else {
       Serial.printf_P(PSTR("ESPConfig warning: unable to open config file '%s' for read\n"),
-                      m_configFileName.c_str());
-    #ifdef ESP32
-    #else
-      if (!mounted) { m_fileSys.end(); }
-    #endif
-      return *this;
+                      fName.c_str());
+      continue;
     }
+    readJson(json.as<JsonObject>());
   }
+#ifdef ESP32
+#else
+  if (!mounted) { m_fileSys.end(); }
+#endif
 
-  readJson(json.as<JsonObject>());
+  auto error = deserializeJson(json, jsonStr, jsonStrLen);
+  if (!error && json[F("Saved")].as<bool>()) {
+    readJson(json.as<JsonObject>());
+  }
   return *this;
 }
 

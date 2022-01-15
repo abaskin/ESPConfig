@@ -26,6 +26,8 @@ class ESPConfig {
   public:
     ESPConfig(fs::FS& fileSys, const char* configFileName,
               bool useEeprom = true);
+    ESPConfig(fs::FS& fileSys, std::vector<const char*> configFileList,
+              bool useEeprom = true);
     ESPConfig(fs::FS& fileSys, JsonObjectConst json);
     ~ESPConfig();
     ESPConfig& read();
@@ -56,7 +58,7 @@ class ESPConfig {
     configMap_t m_config;
 
     fs::FS& m_fileSys;
-    const std::string m_configFileName;
+    const std::vector<std::string> m_configFileList;
     const bool m_useEeprom;
 };
 

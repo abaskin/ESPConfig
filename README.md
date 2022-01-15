@@ -10,14 +10,13 @@ the Preferences library is used.
 Once an ESPConfig object is created the existing configuration can then be read
 from the EEPROM, file system, or a JSON string. Values can then be retrieved
 from or written to the ESPConfig object and the `save` method called to persist
-the values to the EEPROM or file system. If the data in the EEPROM is not valid
-the configuration file is used. This is useful on the case of a new device where
-the EEPROM has not been written yet. In the case where you would like to handle
-reading and writing the data yourself, call `read` with the data in a JSON
-string and call `toJSON` to get the data to store as required. This facilitates
-using with another library that also writes to the EEPROM. The flags passed to
-ArduinoJson in the library.json file allow for comments to be used configuration
-files stored in the filesystem if used with PlatformIO.
+the values to the EEPROM or file system. The configuration files are processed
+in the order specified, followed by the EEPROM if present. In the case where you
+would like to handle reading and writing the data yourself, call `read` with the
+data in a JSON string and call `toJSON` to get the data to store as required. This
+facilitates using with another library that also writes to the EEPROM. The flags
+passed to ArduinoJson in the library.json file allow for comments to be used
+configuration files stored in the filesystem if used with PlatformIO.
 
 ## Supported Value Types
 
@@ -43,6 +42,17 @@ ESPConfig objectName(fs::FS& fileSys,
 - **objectName** - the name of the object
 - **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
 - **configFileName** - the filename of the configuration file in the file system
+- **useEeprom** - use the EEPROM to store the configuration data
+
+```c++
+ESPConfig objectName(fs::FS& fileSys,
+                     std::vector<const char*> configFileList,
+                     bool useEeprom = true);
+```
+
+- **objectName** - the name of the object
+- **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
+- **configFileList** - a list filenames of configuration files in the file system
 - **useEeprom** - use the EEPROM to store the configuration data
 
 ## Object Methods
