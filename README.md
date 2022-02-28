@@ -1,9 +1,8 @@
 # ESP Configuration Library
 
 This is a library for managing configuration settings with support for saving to
-EEPROM or the file system (LittleFS, SPIFFS, SD) as JSON. On the ESP8266 the
-ESP_EEPROM library (jwrw/ESP_EEPROM) is used to access the EEPROM. On the ESP32
-the Preferences library is used.
+EEPROM or the file system (LittleFS, SPIFFS, SD). Configuration information is
+stored in the filesystem is stored as JSON and in EEPROM as MessagePack.
 
 ## Using the library
 
@@ -11,48 +10,68 @@ Once an ESPConfig object is created the existing configuration can then be read
 from the EEPROM, file system, or a JSON string. Values can then be retrieved
 from or written to the ESPConfig object and the `save` method called to persist
 the values to the EEPROM or file system. The configuration files are processed
-in the order specified, followed by the EEPROM if present. In the case where you
-would like to handle reading and writing the data yourself, call `read` with the
-data in a JSON string and call `toJSON` to get the data to store as required. This
-facilitates using with another library that also writes to the EEPROM. The flags
-passed to ArduinoJson in the library.json file allow for comments to be used
-configuration files stored in the filesystem if used with PlatformIO.
+in reverse of the order specified, followed by the EEPROM if present. In the case
+where you would like to handle reading and writing the data yourself, call `read`
+with the data in a JSON string and call `toJSON` to get the data to store as
+required. This facilitates using with another library that also writes to the
+EEPROM. The flags passed to ArduinoJson in the library.json file allow for
+comments to be used configuration files stored in the filesystem when used with
+PlatformIO.
 
 ## Supported Value Types
 
 C++ Type | JSON Type
 -------- | ---------
 `bool` | boolean
+`uint32_t` | number
 `double` | number
 `std::string` | string
 `ESPConfigP_t` | object
 `std::vector<bool>` | array of boolean
+`std::vector<int32_t>` | array of number
 `std::vector<double>` | array of number
 `std::vector<std::string>` | array of string
 `std::vector<ESPConfigP_t>` | array of object
 
 ## Declaring the ESPConfig object
 
+Calling the constructor without any arguments creates an object that only reads
+from and writes to the EEPROM.
+
 ```c++
-ESPConfig objectName(fs::FS& fileSys,
-                     const char* configFileName,
-                     bool useEeprom = true);
+ESPConfig objectName();
 ```
 
 - **objectName** - the name of the object
-- **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
+
+```c++
+ESPConfig objectName(const char* configFileName,
+                     fs::FS* fileSys,
+                     const mountCallBack_t mountCB = [](){},
+                     const mountCallBack_t unmountCB = [](){},
+                     const bool useEeprom = true);
+```
+
+- **objectName** - the name of the object
 - **configFileName** - the filename of the configuration file in the file system
+- **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
+- **mountCB** - a callback to mount the filesystem if required
+- **unmountCB** - a callback to unmount the filesystem if required
 - **useEeprom** - use the EEPROM to store the configuration data
 
 ```c++
-ESPConfig objectName(fs::FS& fileSys,
-                     std::vector<const char*> configFileList,
-                     bool useEeprom = true);
+ESPConfig objectName(const std::vector<const char*> configFileList,
+                     fs::FS* fileSys,
+                     const mountCallBack_t mountCB = [](){},
+                     const mountCallBack_t unmountCB = [](){},
+                     const bool useEeprom = true);
 ```
 
 - **objectName** - the name of the object
-- **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
 - **configFileList** - a list filenames of configuration files in the file system
+- **fileSys** - the file system for the configFileName (LittleFS, SPIFFS, SD)
+- **mountCB** - a callback to mount the filesystem if required
+- **unmountCB** - a callback to unmount the filesystem if required
 - **useEeprom** - use the EEPROM to store the configuration data
 
 ## Object Methods
@@ -84,6 +103,7 @@ const char* value<const char*>(key)
 ESPConfigP_t value<ESPConfigP_t>(key)
 std::array<double, 2> value<std::array<double, 2>>(key)
 std::vector<bool> value<std::vector<bool>>(key)
+std::vector<double> value<std::vector<int32_t>>(key)
 std::vector<double> value<std::vector<double>>(key)
 std::vector<std::string> value<std::vector<std::string>>(key)
 std::vector<ESPConfigP_t> value<std::vector<ESPConfigP_t>>(key)
@@ -102,6 +122,7 @@ void value(const char* key, const char* value)
 void value(const char* key, ESPConfigP_t value)
 void value(const char* key, std::array<double, 2> value)
 void value(const char* key, std::vector<bool> value)
+void value(const char* key, std::vector<int32_t> value)
 void value(const char* key, std::vector<double> value)
 void value(const char* key, std::vector<std::string> value)
 void value(const char* key, std::vector<ESPConfigP_t> value)
@@ -111,6 +132,9 @@ void value(const char* key, std::vector<ESPConfigP_t> value)
 - **value** - the value to be saved
 
 Set the value for a given key.
+Note: Empty vectors may be used to create a value but they will not be read back
+from persistent storage. This is because there is no way to determine the type of
+an empty array in JSON.
 
 ```c++
 std::vector<const char*> keys()
@@ -120,6 +144,7 @@ Retrieve all the keys for the ESPConfig object.
 
 ```c++
 ESPConfig& read();
+ESPConfig& read(const char* jsonStr);
 ESPConfig& read(const char* jsonStr, size_t jsonStrLen)
 ```
 
@@ -127,21 +152,27 @@ ESPConfig& read(const char* jsonStr, size_t jsonStrLen)
 - **jsonStrLen** -  the maximum number of bytes to read from jsonStr
 
 Read configuration from the EEPROM, file system, or the passed JSON string.
+Note: Empty arrays in the JSON will be ignored because there is no way to determine
+the type of an empty array.
 
 ```c++
 void save();
 ```
 
-Save the configuration to either the EEPROM or the file system.
+Save the configuration to either the EEPROM or the file system. The first
+configuration file is used if the object was created with useEeprom false and
+a configuration file was specified.
 
 ```c++
-std::string toJSON(bool pretty = true)
+std::string toJSON(ESPConfig::saveFormat format = ESPConfig::saveFormat::minified)
 ```
 
-- **pretty** - create a prettified JSON document, i.e. a document with spaces
-and line-breaks between values
+- **format** - the format to return
+  - ESPConfig::saveFormat::minified - minified JSON document, i.e. a document without spaces or line break between values.
+  - ESPConfig::saveFormat::pretty - prettified JSON document, i.e. a document with spaces and line-breaks between values
+  - ESPConfig::saveFormat::msgPack - a MessagePack document
 
-Return the configuration data as JSON.
+Return the configuration data as JSON or MessagePack.
 
 ```c++
 ESPConfig& remove(const char* key)
@@ -149,10 +180,19 @@ ESPConfig& remove(const char* key)
 
 - **key** - the value's key
 
-Remove a value based in its key
+Remove a value based in its key.
 
 ```c++
 ESPConfig& reset()
 ```
 
-Remove all values
+Remove all values.
+
+## Compile Time Settings
+
+The following value can be set at comple time with preprocessor macro identifiers.
+
+Macro Identifier | Setting | Default
+---------------- | ------- | -------
+ESPCONFIG_EEPROMSIZE | The size of the EEPROM area used to save the configuration | 1024
+ESPCONFIG_JSONDOCSIZE | The size of the JsonDocument used by the configuration| 1024

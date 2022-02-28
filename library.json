@@ -35,16 +35,15 @@
       "version": "^6.18.5"
     },
     {
-      "owner": "jwrw",
-      "name": "ESP_EEPROM",
-      "version": "^2.1.1",
-      "platforms": [ "espressif8266" ]
+      "owner": "bblanchon",
+      "name": "StreamUtils",
+      "version": "^1.6.2"
     }
   ],
   "build": {
       "flags": [
         "-D ARDUINOJSON_ENABLE_ARDUINO_STREAM=1",
-        "-D ARDUINOJSON_ENABLE_STD_STRING=0",
+        "-D ARDUINOJSON_ENABLE_STD_STRING=1",
         "-D ARDUINOJSON_ENABLE_STD_STREAM=0",
         "-D ARDUINOJSON_ENABLE_ARDUINO_STRING=0",
         "-D ARDUINOJSON_ENABLE_ARDUINO_PRINT=0",

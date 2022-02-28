@@ -1,124 +1,140 @@
 #include "ESPConfig.hpp"
 
-#ifdef ESP32
-#include <Preferences.h>
-#include <memory>
-#else
-#include <ESP_EEPROM.h>
-#endif
+#include <StreamUtils.h>
 
-ESPConfig::ESPConfig(fs::FS& fileSys, const char* configFileName,
-                     bool useEeprom)
+#include <algorithm>
+
+ESPConfig::ESPConfig()
+    : m_fileSys{nullptr},
+      m_configFileList{{}},
+      m_useEeprom{true},
+      m_mountCB{[]() {}},
+      m_unmountCB{[]() {}} {
+  read();
+}
+
+ESPConfig::ESPConfig(const char* configFileName, fileSystemP_t fileSys,
+                     const mountCallBack_t mountCB,
+                     const mountCallBack_t unmountCB,
+                     const bool useEeprom)
     : m_fileSys{fileSys},
       m_configFileList{{configFileName}},
-      m_useEeprom{useEeprom} {
+      m_useEeprom{useEeprom},
+      m_mountCB{mountCB},
+      m_unmountCB{unmountCB} {
   read();
 }
 
-ESPConfig::ESPConfig(fs::FS& fileSys, std::vector<const char*> configFileList,
-          bool useEeprom)
+ESPConfig::ESPConfig(const std::vector<const char*> configFileList,
+                     fileSystemP_t fileSys, const mountCallBack_t mountCB,
+                     const mountCallBack_t unmountCB, const bool useEeprom)
     : m_fileSys{fileSys},
       m_configFileList{configFileList},
-      m_useEeprom{useEeprom} {
+      m_useEeprom{useEeprom},
+      m_mountCB{mountCB},
+      m_unmountCB{unmountCB} {
   read();
 }
 
-ESPConfig::~ESPConfig(){
-  for (auto key : keys()) {
-    if (is<ESPConfigP_t>(key)) { remove(key); }
-  }
-}
-
-ESPConfig::ESPConfig(fs::FS& fileSys, JsonObjectConst json)
-    : m_fileSys{fileSys},
+ESPConfig::ESPConfig(JsonObjectConst json)
+    : m_fileSys{nullptr}, 
       m_configFileList{{}},
       m_useEeprom{false} {
   readJson(json);
 }
 
+ESPConfig::~ESPConfig() {
+  for (auto key : keys()) {
+    if (is<ESPConfigP_t>(key)) {
+      remove(key);
+    }
+  }
+  m_fileSys.release();
+}
+
 ESPConfig& ESPConfig::remove(const char* key) {
   if (is<ESPConfigP_t>(key)) {
-  #ifdef ESP32
-    delete linb::any_cast<ESPConfigP_t>(m_config.at(key));
-  #else
+#if __has_include(<variant>)
     delete std::get<ESPConfigP_t>(m_config.at(key));
-  #endif
+#else
+    delete linb::any_cast<ESPConfigP_t>(m_config.at(key));
+#endif
   }
   m_config.erase(key);
   return *this;
 }
 
 ESPConfig& ESPConfig::reset() {
-  for (auto key : keys()) {
-    remove(key);
-  }
+  std::for_each(keys().begin(), keys().end(),
+    [this](const char* key) { remove(key); });
   return *this;
 }
 
 const std::vector<const char*> ESPConfig::keys() const {
   std::vector<const char*> key{};
-  for (const auto& c : m_config) {
-    key.push_back(c.first.c_str());
-  }
+  std::for_each(m_config.begin(), m_config.end(), 
+      [&key](const std::pair<std::string, configValue_t>& c){
+        key.push_back(c.first.c_str());
+      });
   return key;
 }
 
 ESPConfig& ESPConfig::read() {
-  char configBuff[m_eepromSize];
-  strcpy_P(configBuff, PSTR("{}"));
-  if (m_useEeprom) {    // read from EEPROM
-  #ifdef ESP32
-    std::unique_ptr<Preferences> prefs{ new Preferences };
-    prefs->begin(m_prefNamespace);
-    prefs->getString(m_prefKey, configBuff, sizeof(configBuff));
-    prefs->end();
-  #else
-    EEPROM.begin(m_eepromSize);
-    EEPROM.get(0, configBuff);
-    EEPROM.end();
-  #endif
+  read("");
+
+  DynamicJsonDocument json { m_jsonDocSize };
+  EEPROM.begin(m_eepromSize);
+  EepromStream eepromStream(0, m_eepromSize);
+  auto error { deserializeMsgPack(json, eepromStream) };
+  eepromStream.flush();
+  EEPROM.end();
+
+  if (!error && json[F("Saved")].as<bool>()) {
+    readJson(json.as<JsonObject>());
   }
-  read(configBuff, m_eepromSize);
+
   return *this;
+}
+
+ESPConfig& ESPConfig::read(const char* jsonStr) {
+  return read(jsonStr, strlen(jsonStr));
 }
 
 ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   DynamicJsonDocument json { m_jsonDocSize };
   //read configuration from FS json
-#ifdef ESP32
-  // filesystem must be mounted
-#else
-  FSInfo fs_info;
-  auto mounted = m_fileSys.info(fs_info);
-  if (!mounted) { m_fileSys.begin(); }
-#endif
-  for (const auto& fName : m_configFileList) {
-    auto configFile = m_fileSys.open(fName.c_str(), "r");
-    if (configFile) {
-      DeserializationError error = deserializeJson(json, configFile);
-      configFile.close();
-      if (error) {
-        Serial.printf_P(
-            PSTR("ESPConfig error: config file serializeJson() failed: %s\n"),
-            error.c_str());
-            continue;
-      }
-    } else {
-      Serial.printf_P(PSTR("ESPConfig warning: unable to open config file '%s' for read\n"),
-                      fName.c_str());
-      continue;
-    }
-    readJson(json.as<JsonObject>());
+  if (m_fileSys) {
+    m_mountCB();
+    std::for_each(m_configFileList.rbegin(), m_configFileList.rend(),
+      [&json, this](const char* fileName) {
+        auto configFile = m_fileSys->open(fileName, "r");
+        if (configFile) {
+          DeserializationError error = deserializeJson(json, configFile);
+          configFile.close();
+          if (error) {
+            Serial.printf_P(
+              PSTR("ESPConfig read error: config file serializeJson() failed: %s\n"),
+              error.c_str());
+            return;
+          }
+        } else {
+          Serial.printf_P(
+            PSTR("ESPConfig read warning: unable to open config file '%s' for read\n"),
+            fileName);
+          return;
+        }
+        readJson(json.as<JsonObject>());
+      });
+    m_unmountCB();
   }
-#ifdef ESP32
-#else
-  if (!mounted) { m_fileSys.end(); }
-#endif
 
-  auto error = deserializeJson(json, jsonStr, jsonStrLen);
-  if (!error && json[F("Saved")].as<bool>()) {
-    readJson(json.as<JsonObject>());
+  if (jsonStrLen != 0) {
+    auto error { deserializeJson(json, jsonStr, jsonStrLen) };
+    if (!error) {
+      readJson(json.as<JsonObject>());
+    }
   }
+
   return *this;
 }
 
@@ -126,6 +142,11 @@ void ESPConfig::readJson(JsonObjectConst json){
   for (auto kv : json) {
     if (kv.value().is<bool>()) {
       value(kv.key().c_str(), kv.value().as<bool>());
+      continue;
+    }
+
+    if (kv.value().is<int32_t>()) {
+      value(kv.key().c_str(), kv.value().as<int32_t>());
       continue;
     }
 
@@ -140,11 +161,12 @@ void ESPConfig::readJson(JsonObjectConst json){
     }
 
     if (kv.value().is<JsonObjectConst>()) {
-      value(kv.key().c_str(), new ESPConfig{m_fileSys, kv.value().as<JsonObjectConst>()});
+      value(kv.key().c_str(), new ESPConfig{kv.value().as<JsonObjectConst>()});
       continue;
     }
 
-    if (kv.value().is<JsonArrayConst>()) {
+    if (kv.value().is<JsonArrayConst>() && 
+        kv.value().as<JsonArrayConst>().size() != 0) {
       auto arr { kv.value().as<JsonArrayConst>() };
 
       if (arr[0].is<bool>()) {
@@ -152,6 +174,15 @@ void ESPConfig::readJson(JsonObjectConst json){
         value<std::vector<bool>>(kv.key().c_str()).reserve(arr.size());
         for (auto val : arr) {
           value<std::vector<bool>>(kv.key().c_str()).push_back(val.as<bool>());
+        }
+        continue;
+      }
+
+      if (arr[0].is<int32_t>()) {
+        value(kv.key().c_str(), std::vector<int32_t>{});
+        value<std::vector<int32_t>>(kv.key().c_str()).reserve(arr.size());
+        for (auto val : arr) {
+          value<std::vector<int32_t>>(kv.key().c_str()).push_back(val.as<int32_t>());
         }
         continue;
       }
@@ -179,7 +210,7 @@ void ESPConfig::readJson(JsonObjectConst json){
         value<std::vector<ESPConfigP_t>>(kv.key().c_str()).reserve(arr.size());
         for (auto val : arr) {
           value<std::vector<ESPConfigP_t>>(kv.key().c_str())
-            .push_back(new ESPConfig{m_fileSys, val.as<JsonObjectConst>()});
+            .push_back(new ESPConfig{val.as<JsonObjectConst>()});
         }
         continue;
       }
@@ -187,135 +218,146 @@ void ESPConfig::readJson(JsonObjectConst json){
   }
 }
 
-std::string ESPConfig::toJSON(bool pretty) const {
-  DynamicJsonDocument json { m_jsonDocSize };
+std::string ESPConfig::toJSON(ESPConfig::saveFormat format) const {
+  std::string output;
+
+  switch (format) {
+    case saveFormat::minified:
+      serializeJson(toJSONObj(), output);
+      break;
+    case saveFormat::pretty:
+      serializeJsonPretty(toJSONObj(), output);
+      break;
+    case saveFormat::msgPack:
+      serializeMsgPack(toJSONObj(), output);
+      break;
+    default:
+      break;
+  }
+
+  return output;
+}
+
+DynamicJsonDocument ESPConfig::toJSONObj() const {
+  DynamicJsonDocument json{m_jsonDocSize};
 
   json[F("Saved")] = true;
 
   for (auto key : keys()) {
-  // the order must match the configValue_t variant definition
-  #ifdef ESP32
-    uint32_t index { 255 };
-    if (m_config.at(key).type() == typeid(bool)) index = 0;
-    if (m_config.at(key).type() == typeid(double)) index = 1;
-    if (m_config.at(key).type() == typeid(std::string)) index = 2;
-    if (m_config.at(key).type() == typeid(ESPConfigP_t)) index = 3;
-    if (m_config.at(key).type() == typeid(std::vector<bool>)) index = 4;
-    if (m_config.at(key).type() == typeid(std::vector<double>)) index = 5;
-    if (m_config.at(key).type() == typeid(std::vector<std::string>)) index = 6;
-    if (m_config.at(key).type() == typeid(std::vector<ESPConfigP_t>)) index = 7;
+  #if __has_include(<variant>)
+    auto index { m_config.at(key).index() };
   #else
-    uint32_t index { m_config.at(key).index() };
+    auto index{std::distance(
+      anyIndex.begin(),
+      std::find(anyIndex.begin(), anyIndex.end(),
+                std::type_index(m_config.at(key).type()))
+    )};
   #endif
+    // the order must match the configValue_t variant definition
     switch (index) {
       case 0:  // bool
         json[key] = value<bool>(key);
         break;
-      case 1:  // double
+      case 1:  // int32_t
+        json[key] = value<int32_t>(key);
+        break;
+      case 2:  // double
         json[key] = value<double>(key);
         break;
-      case 2:  // std::string
+      case 3:  // std::string
         json[key] = value<const char*>(key);
         break;
-      case 3:  // ESPConfig_t
+      case 4:  // ESPConfig_t
         json[key] = value<ESPConfigP_t>(key)->toJSON().c_str();
         break;
-      case 4: {  // std::vector<bool>
+      default: {
         auto arr{json.createNestedArray(key)};
-        for (const bool val : value<std::vector<bool>>(key)) {
-          arr.add(val);
+        switch (index) {
+          case 5:   // std::vector<bool>
+            std::for_each(value<std::vector<bool>>(key).begin(),
+                          value<std::vector<bool>>(key).end(),
+                          [&arr](const bool val){ arr.add(val); });
+            break;
+          case 6:   // std::vector<int32_t>
+            std::for_each(value<std::vector<uint32_t>>(key).begin(),
+                          value<std::vector<uint32_t>>(key).end(),
+                          [&arr](const uint32_t val){ arr.add(val); });
+            break;
+          case 7:   // std::vector<double>
+            std::for_each(value<std::vector<double>>(key).begin(),
+                          value<std::vector<double>>(key).end(),
+                          [&arr](const double val){ arr.add(val); });
+            break;
+          case 8:   // std::vector<std::string>
+            std::for_each(value<std::vector<std::string>>(key).begin(),
+                          value<std::vector<std::string>>(key).end(),
+                          [&arr](const std::string& val){ arr.add(val.c_str()); });
+            break;
+          case 9:   // std::vector<ESPConfig_t>
+            std::for_each(value<std::vector<ESPConfigP_t>>(key).begin(),
+                          value<std::vector<ESPConfigP_t>>(key).end(),
+                          [&arr](const ESPConfigP_t val){ arr.add(val->toJSON().c_str()); });
+            break;
+          default:
+            break;
         }
         break;
       }
-      case 5: {  // std::vector<double>
-        auto arr{json.createNestedArray(key)};
-        for (const double val : value<std::vector<double>>(key)) {
-          arr.add(val);
-        }
-        break;
-      }
-      case 6: {  // std::vector<std::string>
-        auto arr{json.createNestedArray(key)};
-        for (const std::string& val : value<std::vector<std::string>>(key)) {
-          arr.add(val.c_str());
-        }
-        break;
-      }
-      case 7: {  // std::vector<ESPConfig_t>
-        auto arr{json.createNestedArray(key)};
-        for (const auto val : value<std::vector<ESPConfigP_t>>(key)) {
-          arr.add(val->toJSON().c_str());
-        }
-        break;
-      }
-      default:
-        break;
     }
   }
 
-  auto jsonStrLen { measureJsonPretty(json) + 1 };
-  std::unique_ptr<char[]> jsonStr { new char[jsonStrLen] };
-  if (pretty) {
-    serializeJsonPretty(json, jsonStr.get(), jsonStrLen);
-  } else {
-    serializeJson(json, jsonStr.get(), jsonStrLen);
-  }
-  return std::string{jsonStr.get()};
+  return json;
 }
 
 void ESPConfig::save() const {
-  auto jsonStr{toJSON(!m_useEeprom)};
   if (m_useEeprom) {
-    if (jsonStr.length() + 1 > m_eepromSize) {
+    auto json{toJSONObj()};
+    auto toWrite{measureMsgPack(json)};
+    if (toWrite > m_eepromSize) {
       Serial.printf_P(
-          PSTR("ESPConfig error: the config JSON size %d is greater than the "
-               "available EEPROM size %d and the config JSON was not saved.\n"
-               "Please increase the available EEPROM size\n"),
-          jsonStr.length() + 1, m_eepromSize);
+          PSTR("ESPConfig save error: the config data size %d is greater than "
+               "the available EEPROM size %d and the config data was not saved.\n"
+               "Please increase the available EEPROM size using the "
+               "ESPCONFIG_EEPROMSIZE macro identifier.\n"),
+          toWrite, m_eepromSize);
       return;
     }
 
-  #ifdef ESP32
-    std::unique_ptr<Preferences> prefs{ new Preferences };
-    prefs->begin(m_prefNamespace);
-    prefs->putString(m_prefKey, jsonStr.c_str());
-    prefs->end();
-  #else
-    // write to EEPROM
-    char configBuff[m_eepromSize];
-    memcpy(configBuff, jsonStr.c_str(), jsonStr.length() + 1);
     EEPROM.begin(m_eepromSize);
-    EEPROM.put(0, configBuff);
-    EEPROM.commit();
+    EepromStream eepromStream(0, m_eepromSize);
+    serializeMsgPack(json, eepromStream);
+    eepromStream.flush();
     EEPROM.end();
-  #endif
+
     return;
   }
 
-  // write configuration json to FS
-#ifdef ESP32
-// the filesystem must already be mounted
-#else
-  FSInfo fs_info;
-  auto mounted = m_fileSys.info(fs_info);
-  if (!mounted) { m_fileSys.begin(); }
-#endif
-  auto configFile = m_fileSys.open(m_configFileName.c_str(), "w");
-  if (configFile) {
-    auto written = configFile.print(jsonStr.c_str());
-    configFile.close();
-    if (written != jsonStr.length()) {
-      Serial.printf_P(PSTR("ESPConfig error: file system write failed, %d written not %d\n"),
-                      written, jsonStr.length());
+  if (m_fileSys) {
+    // write configuration json to FS
+    if (m_configFileList.empty()) {
+      Serial.printf_P(PSTR("ESPConfig save error: no config file provided\n"));
+      return;
     }
-  } else {
-    Serial.printf_P(PSTR("ESPConfig error: unable to open config file '%s' for write\n"),
-                    m_configFileName.c_str());
-  }
-#ifdef ESP32
 
-#else
-  if (!mounted) { m_fileSys.end(); }
-#endif
+    m_mountCB();
+    auto configFile = m_fileSys->open(m_configFileList.at(0), "w");
+    if (configFile) {
+      auto json{ toJSONObj() };
+      auto toWrite { measureJsonPretty(json) };
+      auto written { serializeJsonPretty(json, configFile) };
+      configFile.close();
+      if (written != toWrite) {
+        Serial.printf_P(PSTR("ESPConfig save error: file system write failed, %d "
+                             "bytes written not %d\n"),
+                        written, toWrite);
+      }
+    } else {
+      Serial.printf_P(
+          PSTR("ESPConfig save error: unable to open config file '%s' for write\n"),
+          m_configFileList[0]);
+    }
+    m_unmountCB();
+  }
+
   return;
 }
