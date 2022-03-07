@@ -1,19 +1,17 @@
 #include "ESPConfig.hpp"
 
-#include <StreamUtils.h>
-
 #include <algorithm>
 
 ESPConfig::ESPConfig()
     : m_fileSys{nullptr},
       m_configFileList{{}},
       m_useEeprom{true},
-      m_mountCB{[]() {}},
-      m_unmountCB{[]() {}} {
+      m_mountCB{[](fileSystem_t fileSys) {}},
+      m_unmountCB{[](fileSystem_t fileSys) {}} {
   read();
 }
 
-ESPConfig::ESPConfig(const char* configFileName, fileSystemP_t fileSys,
+ESPConfig::ESPConfig(const char* configFileName, fileSystem_t fileSys,
                      const mountCallBack_t mountCB,
                      const mountCallBack_t unmountCB,
                      const bool useEeprom)
@@ -26,7 +24,7 @@ ESPConfig::ESPConfig(const char* configFileName, fileSystemP_t fileSys,
 }
 
 ESPConfig::ESPConfig(const std::vector<const char*> configFileList,
-                     fileSystemP_t fileSys, const mountCallBack_t mountCB,
+                     fileSystem_t fileSys, const mountCallBack_t mountCB,
                      const mountCallBack_t unmountCB, const bool useEeprom)
     : m_fileSys{fileSys},
       m_configFileList{configFileList},
@@ -49,7 +47,6 @@ ESPConfig::~ESPConfig() {
       remove(key);
     }
   }
-  m_fileSys.release();
 }
 
 ESPConfig& ESPConfig::remove(const char* key) {
@@ -104,7 +101,7 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
   DynamicJsonDocument json { m_jsonDocSize };
   //read configuration from FS json
   if (m_fileSys) {
-    m_mountCB();
+    m_mountCB(m_fileSys);
     std::for_each(m_configFileList.rbegin(), m_configFileList.rend(),
       [&json, this](const char* fileName) {
         auto configFile = m_fileSys->open(fileName, "r");
@@ -125,7 +122,7 @@ ESPConfig& ESPConfig::read(const char* jsonStr, size_t jsonStrLen) {
         }
         readJson(json.as<JsonObject>());
       });
-    m_unmountCB();
+    m_unmountCB(m_fileSys);
   }
 
   if (jsonStrLen != 0) {
@@ -279,9 +276,9 @@ DynamicJsonDocument ESPConfig::toJSONObj() const {
                           [&arr](const bool val){ arr.add(val); });
             break;
           case 6:   // std::vector<int32_t>
-            std::for_each(value<std::vector<uint32_t>>(key).begin(),
-                          value<std::vector<uint32_t>>(key).end(),
-                          [&arr](const uint32_t val){ arr.add(val); });
+            std::for_each(value<std::vector<int32_t>>(key).begin(),
+                          value<std::vector<int32_t>>(key).end(),
+                          [&arr](const int32_t val){ arr.add(val); });
             break;
           case 7:   // std::vector<double>
             std::for_each(value<std::vector<double>>(key).begin(),
@@ -339,7 +336,7 @@ void ESPConfig::save() const {
       return;
     }
 
-    m_mountCB();
+    m_mountCB(m_fileSys);
     auto configFile = m_fileSys->open(m_configFileList.at(0), "w");
     if (configFile) {
       auto json{ toJSONObj() };
@@ -356,7 +353,7 @@ void ESPConfig::save() const {
           PSTR("ESPConfig save error: unable to open config file '%s' for write\n"),
           m_configFileList[0]);
     }
-    m_unmountCB();
+    m_unmountCB(m_fileSys);
   }
 
   return;

@@ -2,7 +2,9 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>  // https://github.com/bblanchon/
+#include <EEPROM.h>
 #include <FS.h>
+#include <StreamUtils.h>
 
 #include <array>
 #include <functional>
@@ -34,9 +36,8 @@ constexpr auto m_jsonDocSize{ESPCONFIG_JSONDOCSIZE};
 class ESPConfig {
   public:
     using ESPConfigP_t = ESPConfig*;
-    using mountCallBack_t = std::function<void()>;
-    using fileSystem_t = fs::FS;
-    using fileSystemP_t = fileSystem_t*;
+    using fileSystem_t = fs::FS*;
+    using mountCallBack_t = std::function<void(fileSystem_t fileSys)>;
     enum class saveFormat: uint8_t {
       minified,
       pretty,
@@ -45,17 +46,17 @@ class ESPConfig {
 
     ESPConfig();
 
-    ESPConfig(const char* configFileName, 
-              fileSystemP_t fileSys,
-              mountCallBack_t mountCB = [](){},
-              mountCallBack_t unmountCB = [](){},
-              const bool useEeprom = true);
+    ESPConfig(
+        const char* configFileName, fileSystem_t fileSys,
+        mountCallBack_t mountCB = [](fileSystem_t fileSys) {},
+        mountCallBack_t unmountCB = [](fileSystem_t fileSys) {},
+        const bool useEeprom = true);
 
-    ESPConfig(const std::vector<const char*> configFileList,
-              fileSystemP_t fileSys,
-              mountCallBack_t mountCB = [](){},
-              mountCallBack_t unmountCB = [](){},
-              const bool useEeprom = true);
+    ESPConfig(
+        const std::vector<const char*> configFileList, fileSystem_t fileSys,
+        mountCallBack_t mountCB = [](fileSystem_t fileSys) {},
+        mountCallBack_t unmountCB = [](fileSystem_t fileSys) {},
+        const bool useEeprom = true);
 
     ESPConfig(JsonObjectConst json);
     
@@ -105,7 +106,7 @@ class ESPConfig {
 
     std::unordered_map<std::string, configValue_t> m_config;
 
-    std::unique_ptr<fileSystem_t> m_fileSys;
+    fileSystem_t m_fileSys;
     const std::vector<const char*> m_configFileList;
     const bool m_useEeprom;
     const mountCallBack_t m_mountCB;
