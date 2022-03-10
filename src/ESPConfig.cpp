@@ -35,7 +35,7 @@ ESPConfig::ESPConfig(const std::vector<const char*> configFileList,
 }
 
 ESPConfig::ESPConfig(JsonObjectConst json)
-    : m_fileSys{nullptr}, 
+    : m_fileSys{nullptr},
       m_configFileList{{}},
       m_useEeprom{false} {
   readJson(json);
@@ -69,7 +69,7 @@ ESPConfig& ESPConfig::reset() {
 
 const std::vector<const char*> ESPConfig::keys() const {
   std::vector<const char*> key{};
-  std::for_each(m_config.begin(), m_config.end(), 
+  std::for_each(m_config.begin(), m_config.end(),
       [&key](const std::pair<std::string, configValue_t>& c){
         key.push_back(c.first.c_str());
       });
@@ -162,7 +162,7 @@ void ESPConfig::readJson(JsonObjectConst json){
       continue;
     }
 
-    if (kv.value().is<JsonArrayConst>() && 
+    if (kv.value().is<JsonArrayConst>() &&
         kv.value().as<JsonArrayConst>().size() != 0) {
       auto arr { kv.value().as<JsonArrayConst>() };
 
@@ -321,7 +321,7 @@ void ESPConfig::save() const {
     }
 
     EEPROM.begin(m_eepromSize);
-    EepromStream eepromStream(0, m_eepromSize);
+    EepromStream eepromStream(0, toWrite);
     serializeMsgPack(json, eepromStream);
     eepromStream.flush();
     EEPROM.end();
