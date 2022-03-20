@@ -2,7 +2,7 @@
 
 This is a library for managing configuration settings with support for saving to
 EEPROM or the file system (LittleFS, SPIFFS, SD). Configuration information is
-stored in the filesystem is stored as JSON and in EEPROM as MessagePack.
+stored is stored as JSON.
 
 ## Using the library
 
@@ -190,7 +190,7 @@ Remove all values.
 
 ## Compile Time Settings
 
-The following value can be set at comple time with preprocessor macro identifiers.
+The following value can be set at compile time with preprocessor macro identifiers.
 
 Macro Identifier | Setting | Default
 ---------------- | ------- | -------

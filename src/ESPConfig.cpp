@@ -82,7 +82,7 @@ ESPConfig& ESPConfig::read() {
   DynamicJsonDocument json { m_jsonDocSize };
   EEPROM.begin(m_eepromSize);
   EepromStream eepromStream(0, m_eepromSize);
-  auto error { deserializeMsgPack(json, eepromStream) };
+  auto error { deserializeJson(json, eepromStream) };
   eepromStream.flush();
   EEPROM.end();
 
@@ -309,7 +309,7 @@ DynamicJsonDocument ESPConfig::toJSONObj() const {
 void ESPConfig::save() const {
   if (m_useEeprom) {
     auto json{toJSONObj()};
-    auto toWrite{measureMsgPack(json)};
+    auto toWrite{measureJson(json)};
     if (toWrite > m_eepromSize) {
       Serial.printf_P(
           PSTR("ESPConfig save error: the config data size %d is greater than "
@@ -321,8 +321,8 @@ void ESPConfig::save() const {
     }
 
     EEPROM.begin(m_eepromSize);
-    EepromStream eepromStream(0, toWrite);
-    serializeMsgPack(json, eepromStream);
+    EepromStream eepromStream(0, m_eepromSize);
+    serializeJson(json, eepromStream);
     eepromStream.flush();
     EEPROM.end();
 
