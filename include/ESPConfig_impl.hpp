@@ -29,20 +29,20 @@ inline bool ESPConfig::is<std::array<double, 2>>(const char* key) const {
 
 template <typename T>
 inline ESPConfig& ESPConfig::value(const char* key, T value) {
-  m_config[key] = (T)value;
+  m_config.insert_or_assign(key, (T)value);
   return *this;
 }
 
 template <>
 inline ESPConfig& ESPConfig::value<const char*>(const char* key, const char* value) {
-  m_config[key] = std::string{value};
+  m_config.insert_or_assign(key, std::string{value});
   return *this;
 }
 
 template <>
 inline ESPConfig& ESPConfig::value<std::array<double, 2>>(const char* key,
                                                           const std::array<double, 2> value) {
-  m_config[key] = std::vector<double>{value[0], value[1]};
+  m_config.insert_or_assign(key, std::vector<double>{value[0], value[1]});
   return *this;
 }
 

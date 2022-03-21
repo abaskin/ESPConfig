@@ -43,8 +43,8 @@ ESPConfig::ESPConfig(JsonObjectConst json)
 
 ESPConfig::~ESPConfig() {
   for (auto key : keys()) {
-    if (is<ESPConfigP_t>(key)) {
-      remove(key);
+    if (is<ESPConfigP_t>(key.c_str())) {
+      remove(key.c_str());
     }
   }
 }
@@ -63,15 +63,16 @@ ESPConfig& ESPConfig::remove(const char* key) {
 
 ESPConfig& ESPConfig::reset() {
   std::for_each(keys().begin(), keys().end(),
-    [this](const char* key) { remove(key); });
+    [this](const std::string& key) { remove(key.c_str()); });
   return *this;
 }
 
-const std::vector<const char*> ESPConfig::keys() const {
-  std::vector<const char*> key{};
+const std::vector<std::string> ESPConfig::keys() const {
+  std::vector<std::string> key{};
+  key.reserve(m_config.size());
   std::for_each(m_config.begin(), m_config.end(),
       [&key](const std::pair<std::string, configValue_t>& c){
-        key.push_back(c.first.c_str());
+        key.emplace_back(c.first.c_str());
       });
   return key;
 }
@@ -240,7 +241,8 @@ DynamicJsonDocument ESPConfig::toJSONObj() const {
 
   json[F("Saved")] = true;
 
-  for (auto key : keys()) {
+  for (auto keyStr : keys()) {
+    auto key { keyStr.c_str() };
   #if __has_include(<variant>)
     auto index { m_config.at(key).index() };
   #else

@@ -70,7 +70,7 @@ class ESPConfig {
     template <typename T> bool is(const char* key) const;
     template <typename T> ESPConfig& value(const char* key, T value);
     template <typename T> T value(const char* key) const;
-    const std::vector<const char*> keys() const;
+    const std::vector<std::string> keys() const;
     std::string toJSON(saveFormat format = saveFormat::minified) const;
 
    private:

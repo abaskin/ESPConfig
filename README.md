@@ -137,7 +137,7 @@ from persistent storage. This is because there is no way to determine the type o
 an empty array in JSON.
 
 ```c++
-std::vector<const char*> keys()
+std::vector<std::string> keys()
 ```
 
 Retrieve all the keys for the ESPConfig object.
