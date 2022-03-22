@@ -87,7 +87,7 @@ ESPConfig& ESPConfig::read() {
   eepromStream.flush();
   EEPROM.end();
 
-  if (!error && json[F("Saved")].as<bool>()) {
+  if (!error && json[ESPCONFIG_SAVEDKEY].as<bool>()) {
     readJson(json.as<JsonObject>());
   }
 
@@ -239,7 +239,7 @@ std::string ESPConfig::toJSON(ESPConfig::saveFormat format) const {
 DynamicJsonDocument ESPConfig::toJSONObj() const {
   DynamicJsonDocument json{m_jsonDocSize};
 
-  json[F("Saved")] = true;
+  json[ESPCONFIG_SAVEDKEY] = true;
 
   for (auto keyStr : keys()) {
     auto key { keyStr.c_str() };

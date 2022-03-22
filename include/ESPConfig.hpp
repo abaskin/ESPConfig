@@ -18,7 +18,7 @@
 # include <variant>
 #else
 # include <typeindex>
-# include <typeinfo> 
+# include <typeinfo>
 # include "any.hpp"
 #endif
 
@@ -28,6 +28,10 @@
 
 #ifndef ESPCONFIG_JSONDOCSIZE
 # define ESPCONFIG_JSONDOCSIZE 1024u
+#endif
+
+#ifndef ESPCONFIG_SAVEDKEY
+# define ESPCONFIG_SAVEDKEY F("ESPConfigSaved")
 #endif
 
 constexpr auto m_eepromSize{ESPCONFIG_EEPROMSIZE};
@@ -59,7 +63,7 @@ class ESPConfig {
         const bool useEeprom = true);
 
     ESPConfig(JsonObjectConst json);
-    
+
     ~ESPConfig();
     ESPConfig& read();
     ESPConfig& read(const char* jsonStr);

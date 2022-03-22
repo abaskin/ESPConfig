@@ -196,3 +196,4 @@ Macro Identifier | Setting | Default
 ---------------- | ------- | -------
 ESPCONFIG_EEPROMSIZE | The size of the EEPROM area used to save the configuration | 1024
 ESPCONFIG_JSONDOCSIZE | The size of the JsonDocument used by the configuration| 1024
+ESPCONFIG_SAVEDKEY | The key in the saved JSON to mark it as being saved by ESPConfig | ESPConfigSaved
